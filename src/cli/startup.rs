@@ -474,9 +474,8 @@ fn source_update_check_status(result: anyhow::Result<Option<bool>>) -> crate::bu
         },
         Ok(Some(false)) => UpdateStatus::UpToDate,
         Ok(None) => UpdateStatus::Skipped {
-            reason:
-                "no upstream configured for the source checkout (local branch or detached HEAD)"
-                    .to_string(),
+            reason: "no source checkout with an upstream (installed build, local branch, or detached HEAD)"
+                .to_string(),
         },
         Err(error) => UpdateStatus::Error(format!("Source update check failed: {error:#}")),
     }

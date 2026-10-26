@@ -45,6 +45,10 @@ pub(super) async fn fetch_models_from_api(
     models_cache: Arc<RwLock<ModelsCache>>,
     cache_namespace: Option<String>,
 ) -> Result<Vec<ModelInfo>> {
+    if is_opencode_free_catalog(&api_base, &auth) {
+        return fetch_opencode_free_models(api_base, models_cache, cache_namespace).await;
+    }
+
     let url = muse_catalog_url(&api_base, cache_namespace.as_deref());
     let request = auth.apply_catalog(client.get(&url), &api_base).await?;
     let response = apply_kimi_coding_agent_headers(request, &api_base, None)
@@ -102,6 +106,61 @@ pub(super) async fn fetch_models_from_api(
         cache.fetched = true;
     }
 
+    Ok(models)
+}
+
+fn is_opencode_free_catalog(api_base: &str, auth: &ProviderAuth) -> bool {
+    if !api_base
+        .trim_end_matches('/')
+        .eq_ignore_ascii_case("https://opencode.ai/zen/v1")
+    {
+        return false;
+    }
+    match auth {
+        ProviderAuth::None { .. } => true,
+        ProviderAuth::AuthorizationBearer { token, .. } => token == "public",
+        _ => false,
+    }
+}
+
+/// The free roster comes from the live `GET /models` endpoint, over the same
+/// BoringSSL transport as inference. Only ids the anonymous lane can actually
+/// serve are kept.
+async fn fetch_opencode_free_models(
+    api_base: String,
+    models_cache: Arc<RwLock<ModelsCache>>,
+    cache_namespace: Option<String>,
+) -> Result<Vec<ModelInfo>> {
+    let raw_body = super::opencode_free::runtime()?
+        .fetch_models_json(&api_base)
+        .await?;
+    let mut models = parse_openai_compatible_models_response(&raw_body).with_context(|| {
+        format!(
+            "Failed to parse OpenCode Free model catalog response\n  endpoint: {}/models\n  response: {}",
+            api_base.trim_end_matches('/'),
+            jcode_base::util::truncate_str(raw_body.trim(), 1200)
+        )
+    })?;
+    models.retain(|model| model.id.ends_with("-free"));
+    if models.is_empty() {
+        anyhow::bail!(
+            "OpenCode Free model catalog returned no free models\n  endpoint: {}/models\n  response: {}",
+            api_base.trim_end_matches('/'),
+            jcode_base::util::truncate_str(raw_body.trim(), 1200)
+        );
+    }
+
+    if let Some(namespace) = cache_namespace.as_deref() {
+        save_disk_cache_with_source_for_namespace(namespace, &models, Some(&api_base));
+    } else {
+        save_disk_cache_with_source(&models, Some(&api_base));
+    }
+
+    let mut cache = models_cache.write().await;
+    cache.models = models.clone();
+    cache.fetched = true;
+    cache.cached_at = current_unix_secs();
+    drop(cache);
     Ok(models)
 }
 

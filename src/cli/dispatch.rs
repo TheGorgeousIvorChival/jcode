@@ -118,8 +118,13 @@ pub(crate) async fn run_main(mut args: Args) -> Result<()> {
         crate::env::set_var("JCODE_PROVIDER_PROFILE_NAME", profile_name);
         crate::env::set_var("JCODE_PROVIDER_PROFILE_ACTIVE", "1");
         args.provider = provider_choice_for_named_profile(profile_name);
+    } else if args.provider == ProviderChoice::Auto {
+        apply_default_provider_from_config(&mut args);
     }
 
+    if args.auto_answer_first {
+        crate::env::set_var("JCODE_AUTO_ANSWER_FIRST", "1");
+    }
     if let Some(tool_profile) = args.tool_profile.as_deref() {
         crate::env::set_var("JCODE_TOOL_PROFILE", tool_profile);
     }
@@ -657,6 +662,30 @@ pub(crate) async fn run_main(mut args: Args) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Honor `[provider] default_provider` for the initial transport, not only the
+/// model picker. Named `[providers.*]` profiles keep their existing Auto path.
+fn apply_default_provider_from_config(args: &mut Args) {
+    let config = crate::config::config();
+    let Some(default_provider) = config
+        .provider
+        .default_provider
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
+        return;
+    };
+    if config.providers.contains_key(default_provider) {
+        return;
+    }
+    let Ok(choice) = <ProviderChoice as clap::ValueEnum>::from_str(default_provider, true) else {
+        return;
+    };
+    if choice != ProviderChoice::Auto {
+        args.provider = choice;
+    }
 }
 
 /// Transport for `--provider-profile <name>` (issue #1560: this used to force

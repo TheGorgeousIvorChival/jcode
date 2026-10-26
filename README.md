@@ -113,6 +113,25 @@ Agents are also able to spawn their own swarms autonomously. They have a swarm t
 
 Supports a [wide range of providers](https://jcode.sh/docs#providers), including Claude OAuth and OpenAI Codex OAuth.
 
+### OpenCode Free (no signup)
+
+`jcode -p opencode-free` uses the anonymous OpenCode Zen free models with no
+account or API key. Model ids are discovered live (`jcode model list -p
+opencode-free`), and lanes rotate across proxies or direct connections.
+
+```bash
+jcode -p opencode-free
+OPENCODE_FREE_PROXY=http://127.0.0.1:8080 jcode -p opencode-free
+OPENCODE_FREE_PROXY=none jcode -p opencode-free          # direct
+OPENCODE_FREE_LANES='http://a:8080,http://b:8080' jcode -p opencode-free
+jcode -p opencode-free --auto-answer-first               # unattended
+```
+
+Each process gets its own lane rotation and a fresh upstream session identity,
+so parallel instances can use different proxies, no proxy, or the same pool.
+See [docs/OPENCODE_FREE.md](docs/OPENCODE_FREE.md) for the lane config, rotation
+strategies, unattended mode, and message queuing (`Ctrl+Enter`, `Ctrl+T`).
+
 ## Customizability / Self-Dev
 
 Jcode is inventing a new form of customizability. One that doesn't limit you to what a plugin or extension can do. Tell your jcode agent to enter self dev mode, and it will start modifying its own source code. Jcode is optimized to iterate on itself. There is significant infrastructure around self development, which allows it to edit, build, and test its own source code, then reload its own binary and continue work in your (potentially many) sessions, fully automatically.

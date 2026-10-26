@@ -875,3 +875,27 @@ fn prompt_guidance_missing_or_unreadable_project_keeps_global_content() {
         }
     });
 }
+
+#[test]
+fn auto_answer_first_prompt_is_opt_in() {
+    with_prompt_guidance_home(|_| {
+        let previous = std::env::var("JCODE_AUTO_ANSWER_FIRST").ok();
+        crate::env::remove_var("JCODE_AUTO_ANSWER_FIRST");
+
+        let (off, _) = build_system_prompt_split(None, &[], false, None, None);
+        assert!(!off.static_part.contains("# Autonomous Mode"));
+
+        crate::env::set_var("JCODE_AUTO_ANSWER_FIRST", "1");
+        let (on, _) = build_system_prompt_split(None, &[], false, None, None);
+        assert!(on.static_part.contains("# Autonomous Mode"));
+        assert!(
+            on.static_part
+                .contains("select the first reasonable option")
+        );
+
+        match previous {
+            Some(value) => crate::env::set_var("JCODE_AUTO_ANSWER_FIRST", value),
+            None => crate::env::remove_var("JCODE_AUTO_ANSWER_FIRST"),
+        }
+    });
+}

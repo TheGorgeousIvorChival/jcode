@@ -262,8 +262,9 @@ fn claim_update_fetch_slot() -> bool {
 
 /// `None` means this local checkout has no tracking branch, not a failed check.
 pub fn check_for_updates() -> Result<Option<bool>> {
-    let repo_dir =
-        get_repo_dir().ok_or_else(|| anyhow::anyhow!("Could not find jcode source repository"))?;
+    let Some(repo_dir) = get_repo_dir() else {
+        return Ok(None);
+    };
     check_for_updates_in(&repo_dir, claim_update_fetch_slot)
 }
 

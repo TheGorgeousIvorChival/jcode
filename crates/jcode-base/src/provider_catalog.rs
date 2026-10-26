@@ -434,6 +434,8 @@ pub fn openai_compatible_profile_static_models(profile: OpenAiCompatibleProfile)
     };
 
     match profile.id {
+        // The anonymous roster is discovered from the live endpoint; keeping a
+        // copy here would go stale as free models are added and removed.
         "opencode" => {
             push("minimax-m2.7");
             push("kimi-k2.5");

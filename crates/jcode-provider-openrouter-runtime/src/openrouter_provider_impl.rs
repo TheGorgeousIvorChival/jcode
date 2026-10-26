@@ -97,6 +97,17 @@ impl Provider for OpenRouterProvider {
         let include_reasoning_content = include_reasoning_content && !strict_openai_schema;
         let allow_image_input = self.supports_image_input();
 
+        // The anonymous Zen lane is stricter than an ordinary OpenAI-compatible
+        // endpoint: its body must carry `bash` and `read` and its system prompt
+        // must carry an `<env>` block with the working directory. Augment only
+        // this route so every other profile's wire bytes stay unchanged.
+        let opencode_free = self.is_opencode_free_route();
+        let original_tool_count = tools.len();
+        let free_tools = opencode_free.then(|| super::opencode_free::ensure_gate_tools(tools));
+        let tools = free_tools.as_deref().unwrap_or(tools);
+        let free_system = opencode_free.then(|| super::opencode_free::ensure_env_block(system));
+        let system = free_system.as_deref().unwrap_or(system);
+
         let mut effective_messages: Vec<Message> = messages.to_vec();
         let cache_supported = self.model_supports_cache(&model).await;
         let cache_control_added = if cache_supported {
@@ -251,6 +262,12 @@ impl Provider for OpenRouterProvider {
             }
         }
 
+        if opencode_free && original_tool_count == 0 {
+            // The gate tools are present, but they are stubs: do not let the
+            // model call them when the caller supplied no real tools.
+            request["tool_choice"] = serde_json::json!("none");
+        }
+
         let message_items = request
             .get("messages")
             .and_then(|value| value.as_array())
@@ -293,6 +310,30 @@ impl Provider for OpenRouterProvider {
                 ),
             ],
         );
+
+        if opencode_free {
+            super::opencode_free::normalize_free_body(&mut request);
+            let runtime = super::opencode_free::runtime()?;
+            let signal = super::opencode_free::conversation_signal(messages);
+            let api_base = self.api_base.clone();
+            let model_for_stream = model.clone();
+            let provider_pin = Arc::clone(&self.provider_pin);
+            let (tx, rx) = mpsc::channel::<Result<StreamEvent>>(100);
+            jcode_base::logging::info("OpenCode Free transport: BoringSSL (SSE)");
+            tokio::spawn(async move {
+                runtime
+                    .run(
+                        api_base,
+                        request,
+                        model_for_stream,
+                        provider_pin,
+                        signal,
+                        tx,
+                    )
+                    .await;
+            });
+            return Ok(Box::pin(ReceiverStream::new(rx)));
+        }
 
         // OpenRouter uses HTTPS/SSE transport only
         jcode_base::logging::info("OpenRouter transport: HTTPS (SSE)");
@@ -877,6 +918,26 @@ impl Provider for OpenRouterProvider {
 }
 
 impl OpenRouterProvider {
+    /// True for the anonymous Zen free profile, or a named profile pointed at
+    /// the Zen base with no key / the literal `public` key.
+    fn is_opencode_free_route(&self) -> bool {
+        if self.profile_id.as_deref() == Some("opencode-free") {
+            return true;
+        }
+        if !self
+            .api_base
+            .trim_end_matches('/')
+            .eq_ignore_ascii_case("https://opencode.ai/zen/v1")
+        {
+            return false;
+        }
+        match (self.auth)() {
+            Ok(ProviderAuth::None { .. }) => true,
+            Ok(ProviderAuth::AuthorizationBearer { token, .. }) => token == "public",
+            _ => false,
+        }
+    }
+
     async fn complete_azure_responses(
         &self,
         messages: &[Message],

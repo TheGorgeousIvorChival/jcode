@@ -1223,6 +1223,10 @@ pub struct FeatureConfig {
     /// incomplete todos). `/poke on` / `/poke off` still override this per session
     /// (default: true)
     pub auto_poke: bool,
+    /// Let the model resolve its own questions by taking the first option it
+    /// would have offered instead of waiting for the user. Intended for
+    /// unattended runs (default: false)
+    pub auto_answer_first: bool,
     /// Opt in to one aggregate todo weak-point follow-up per completion cycle.
     /// Requires auto-poke; independent of the display-only completion report.
     /// Disabled by default for every user.
@@ -1250,6 +1254,7 @@ impl Default for FeatureConfig {
             swarm: true,
             mermaid: true,
             auto_poke: true,
+            auto_answer_first: false,
             todo_gate_digest: false,
             message_timestamps: true,
             persist_memory_injections: false,

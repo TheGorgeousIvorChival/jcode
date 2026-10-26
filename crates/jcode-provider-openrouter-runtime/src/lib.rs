@@ -57,6 +57,8 @@ use catalog_fetch::fetch_models_from_api;
 
 mod openai_compatible_runtime;
 
+mod opencode_free;
+
 mod request_headers;
 use request_headers::*;
 

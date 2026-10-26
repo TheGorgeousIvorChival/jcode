@@ -18,6 +18,20 @@ pub const OPENCODE_PROFILE: OpenAiCompatibleProfile = OpenAiCompatibleProfile {
     requires_api_key: true,
 };
 
+/// Anonymous OpenCode Zen free tier. `Bearer public` is the literal upstream
+/// accepts; the lane still needs the OpenCode session headers and an
+/// agent-shaped body (see `opencode_free.rs`).
+pub const OPENCODE_FREE_PROFILE: OpenAiCompatibleProfile = OpenAiCompatibleProfile {
+    id: "opencode-free",
+    display_name: "OpenCode Free",
+    api_base: "https://opencode.ai/zen/v1",
+    api_key_env: "OPENCODE_FREE_API_KEY",
+    env_file: "opencode-free.env",
+    setup_url: "https://github.com/1jehuang/jcode#opencode-free",
+    default_model: Some("deepseek-v4.1-flash-free"),
+    requires_api_key: false,
+};
+
 pub const OPENCODE_GO_PROFILE: OpenAiCompatibleProfile = OpenAiCompatibleProfile {
     id: "opencode-go",
     display_name: "OpenCode Go",
@@ -509,8 +523,9 @@ pub const OPENAI_COMPAT_PROFILE: OpenAiCompatibleProfile = OpenAiCompatibleProfi
     requires_api_key: true,
 };
 
-pub(crate) const OPENAI_COMPAT_PROFILES: [OpenAiCompatibleProfile; 45] = [
+pub(crate) const OPENAI_COMPAT_PROFILES: [OpenAiCompatibleProfile; 46] = [
     OPENCODE_PROFILE,
+    OPENCODE_FREE_PROFILE,
     OPENCODE_GO_PROFILE,
     ZAI_PROFILE,
     KIMI_PROFILE,
@@ -703,6 +718,19 @@ pub const OPENCODE_LOGIN_PROVIDER: LoginProviderDescriptor = LoginProviderDescri
     recommended: false,
     target: LoginProviderTarget::OpenAiCompatible(OPENCODE_PROFILE),
     order: LoginProviderSurfaceOrder::new(Some(5), Some(4), Some(5), Some(4), Some(4)),
+};
+
+pub const OPENCODE_FREE_LOGIN_PROVIDER: LoginProviderDescriptor = LoginProviderDescriptor {
+    id: "opencode-free",
+    display_name: "OpenCode Free",
+    auth_kind: LoginProviderAuthKind::Local,
+    auth_state_key: LoginProviderAuthStateKey::OpenRouterLike,
+    auth_status_method: "no account",
+    aliases: &["oc-free", "opencode-anonymous"],
+    menu_detail: "free models, no signup",
+    recommended: true,
+    target: LoginProviderTarget::OpenAiCompatible(OPENCODE_FREE_PROFILE),
+    order: LoginProviderSurfaceOrder::new(Some(6), Some(6), Some(6), Some(6), Some(6)),
 };
 
 pub const OPENCODE_GO_LOGIN_PROVIDER: LoginProviderDescriptor = LoginProviderDescriptor {
@@ -1290,7 +1318,7 @@ pub const GOOGLE_LOGIN_PROVIDER: LoginProviderDescriptor = LoginProviderDescript
     order: LoginProviderSurfaceOrder::new(Some(13), None, None, None, None),
 };
 
-pub(crate) const LOGIN_PROVIDERS: [LoginProviderDescriptor; 57] = [
+pub(crate) const LOGIN_PROVIDERS: [LoginProviderDescriptor; 58] = [
     AUTO_IMPORT_LOGIN_PROVIDER,
     CLAUDE_LOGIN_PROVIDER,
     ANTHROPIC_API_LOGIN_PROVIDER,
@@ -1302,6 +1330,7 @@ pub(crate) const LOGIN_PROVIDERS: [LoginProviderDescriptor; 57] = [
     BEDROCK_LOGIN_PROVIDER,
     AZURE_LOGIN_PROVIDER,
     OPENCODE_LOGIN_PROVIDER,
+    OPENCODE_FREE_LOGIN_PROVIDER,
     OPENCODE_GO_LOGIN_PROVIDER,
     ZAI_LOGIN_PROVIDER,
     KIMI_LOGIN_PROVIDER,

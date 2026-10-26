@@ -46,6 +46,8 @@ pub enum ProviderChoice {
     Opencode,
     #[value(alias = "opencodego")]
     OpencodeGo,
+    #[value(alias = "oc-free", alias = "opencode-anonymous", alias = "free")]
+    OpencodeFree,
     #[value(alias = "z.ai", alias = "z-ai", alias = "zai-coding")]
     Zai,
     #[value(
@@ -165,6 +167,7 @@ impl ProviderChoice {
             Self::Azure => "azure",
             Self::Opencode => "opencode",
             Self::OpencodeGo => "opencode-go",
+            Self::OpencodeFree => "opencode-free",
             Self::Zai => "zai",
             Self::Kimi => "kimi",
             Self::Ai302 => "302ai",
@@ -257,6 +260,10 @@ const PROVIDER_CHOICE_LOGIN_PROVIDERS: &[(ProviderChoice, LoginProviderDescripto
     (
         ProviderChoice::OpencodeGo,
         crate::provider_catalog::OPENCODE_GO_LOGIN_PROVIDER,
+    ),
+    (
+        ProviderChoice::OpencodeFree,
+        crate::provider_catalog::OPENCODE_FREE_LOGIN_PROVIDER,
     ),
     (
         ProviderChoice::Zai,
@@ -1661,6 +1668,7 @@ async fn init_provider_with_model_policy(
         }
         ProviderChoice::Opencode
         | ProviderChoice::OpencodeGo
+        | ProviderChoice::OpencodeFree
         | ProviderChoice::Zai
         | ProviderChoice::Ai302
         | ProviderChoice::Baseten

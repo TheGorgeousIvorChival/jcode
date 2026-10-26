@@ -322,6 +322,25 @@ impl ContextInfo {
     }
 }
 
+/// Appended when the user asks for unattended operation: the model resolves
+/// its own questions instead of ending a turn on a choice.
+const AUTO_ANSWER_FIRST_PROMPT: &str = "# Autonomous Mode\n\n\
+Do not ask the user to choose, confirm, or clarify. When a decision is needed, \
+select the first reasonable option you would have offered, state the choice in \
+one line, and continue. Only stop when the task is complete or blocked by \
+something you cannot change (missing credentials, a destructive action outside \
+the request, or a failing gate you cannot fix).\n";
+
+fn auto_answer_first_enabled() -> bool {
+    match std::env::var("JCODE_AUTO_ANSWER_FIRST") {
+        Ok(value) => matches!(
+            value.trim().to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        ),
+        Err(_) => crate::config::config().features.auto_answer_first,
+    }
+}
+
 /// Build the full system prompt with static context.
 pub fn build_system_prompt(skill_prompt: Option<&str>, available_skills: &[SkillInfo]) -> String {
     build_system_prompt_with_selfdev(skill_prompt, available_skills, false)
@@ -439,6 +458,10 @@ pub fn build_system_prompt_full_with_capabilities(
     if let Some(skills_section) = build_available_skills_section(available_skills) {
         info.skills_chars = skills_section.len();
         parts.push(skills_section);
+    }
+
+    if auto_answer_first_enabled() {
+        parts.push(AUTO_ANSWER_FIRST_PROMPT.to_string());
     }
 
     // Add active skill prompt
@@ -572,6 +595,10 @@ fn build_system_prompt_split_with_capabilities_and_agents_md(
     if let Some(skills_section) = build_available_skills_section(available_skills) {
         info.skills_chars = skills_section.len();
         static_parts.push(skills_section);
+    }
+
+    if auto_answer_first_enabled() {
+        static_parts.push(AUTO_ANSWER_FIRST_PROMPT.to_string());
     }
 
     // === TURN CONTEXT (not cached) ===

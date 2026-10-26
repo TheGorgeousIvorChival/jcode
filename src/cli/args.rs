@@ -67,6 +67,11 @@ pub(crate) struct Args {
     #[arg(long, global = true, default_value = "true")]
     pub(crate) auto_update: bool,
 
+    /// Run unattended: when the model would ask a question, take the first
+    /// reasonable option and continue instead of waiting for input.
+    #[arg(long, global = true)]
+    pub(crate) auto_answer_first: bool,
+
     /// Log tool inputs/outputs and token usage to stderr
     #[arg(long, global = true)]
     pub(crate) trace: bool,

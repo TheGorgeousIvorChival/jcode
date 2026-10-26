@@ -25,13 +25,24 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "str
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value"] }
 bytes = "1"
-tokio = { version = "1", features = ["sync", "time", "rt"] }
+tokio = { version = "1", features = ["sync", "time", "rt", "net", "io-util"] }
 tokio-stream = "0.1"
 uuid = { version = "1", features = ["v4"] }
+# OpenCode's free tier fingerprints the TLS ClientHello: a rustls/reqwest
+# client is refused even with the right HTTP headers. BoringSSL with the same
+# curves/ALPN/grease as Bun passes.
+boring = "5.3"
+tokio-boring = "5.3"
+hyper = { version = "1", features = ["client", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"
+http = "1"
+sha2 = "0.10"
+base64 = "0.22"
+toml = "0.8"
 
 [dev-dependencies]
 # The migrated openrouter tests use jcode-base's test-env sandbox.
 jcode-base = { path = "../jcode-base", default-features = false, features = ["test-support"] }
 jcode-provider-metadata = { path = "../jcode-provider-metadata" }
 tempfile = "3"
-toml = "0.8"

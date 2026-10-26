@@ -16,36 +16,48 @@ impl OpenRouterProvider {
             jcode_base::auth::muse::ensure_enabled()?;
         }
         let resolver_profile = resolved.clone();
-        let auth: AuthResolver = Arc::new(move || {
-            Ok(
-                match load_openai_compatible_profile_api_key(&resolver_profile) {
-                    Some(token) => ProviderAuth::AuthorizationBearer {
-                        token,
-                        label: resolver_profile.api_key_env.clone(),
-                    },
-                    None if !resolver_profile.requires_api_key => ProviderAuth::None {
-                        label: "local endpoint (no auth)".to_string(),
-                    },
-                    None => {
-                        if resolver_profile.id == "muse-subscription" {
+        let opencode_free = resolved.id == "opencode-free";
+        let auth: AuthResolver = if opencode_free {
+            Arc::new(|| {
+                Ok(ProviderAuth::AuthorizationBearer {
+                    token: "public".to_string(),
+                    label: "OpenCode Free (anonymous)".to_string(),
+                })
+            })
+        } else {
+            Arc::new(move || {
+                Ok(
+                    match load_openai_compatible_profile_api_key(&resolver_profile) {
+                        Some(token) => ProviderAuth::AuthorizationBearer {
+                            token,
+                            label: resolver_profile.api_key_env.clone(),
+                        },
+                        None if !resolver_profile.requires_api_key => ProviderAuth::None {
+                            label: "local endpoint (no auth)".to_string(),
+                        },
+                        None => {
+                            if resolver_profile.id == "muse-subscription" {
+                                anyhow::bail!(
+                                    "Muse subscription login unavailable. Run `jcode login --provider muse-subscription`. No pay-as-you-go key fallback was attempted."
+                                );
+                            }
+                            let path = jcode_base::storage::app_config_dir()
+                                .map(|dir| {
+                                    dir.join(&resolver_profile.env_file).display().to_string()
+                                })
+                                .unwrap_or_else(|_| resolver_profile.env_file.clone());
                             anyhow::bail!(
-                                "Muse subscription login unavailable. Run `jcode login --provider muse-subscription`. No pay-as-you-go key fallback was attempted."
+                                "{} credentials not available. {} not found in environment or {}. Run `jcode login --provider {}` first.",
+                                resolver_profile.display_name,
+                                resolver_profile.api_key_env,
+                                path,
+                                resolver_profile.id,
                             );
                         }
-                        let path = jcode_base::storage::app_config_dir()
-                            .map(|dir| dir.join(&resolver_profile.env_file).display().to_string())
-                            .unwrap_or_else(|_| resolver_profile.env_file.clone());
-                        anyhow::bail!(
-                            "{} credentials not available. {} not found in environment or {}. Run `jcode login --provider {}` first.",
-                            resolver_profile.display_name,
-                            resolver_profile.api_key_env,
-                            path,
-                            resolver_profile.id,
-                        );
-                    }
-                },
-            )
-        });
+                    },
+                )
+            })
+        };
         auth()?;
 
         let static_context_limits = openai_compatible_profile_static_context_limits(profile);
@@ -65,6 +77,9 @@ impl OpenRouterProvider {
             api_base,
             auth,
             supports_provider_features: false,
+            // The free roster is fetched from the live endpoint over the
+            // BoringSSL transport; reqwest would be refused by the same TLS
+            // gate as inference.
             supports_model_catalog: true,
             profile_id: Some(resolved.id.clone()),
             builtin_azure: false,

@@ -326,6 +326,10 @@ mermaid = true
 # Auto-poke: automatically nudge the model to continue when it stops with
 # incomplete todos. /poke on and /poke off still override this per session.
 auto_poke = true
+# Autonomous answers: when the model would ask a question, take the first
+# reasonable option and continue instead of waiting for input. Useful for
+# unattended runs; --auto-answer-first enables it for one invocation.
+auto_answer_first = false
 # Optional aggregate weak-point follow-up, once per completed todo cycle.
 # Requires auto-poke. Does not control the display-only completion report.
 todo_gate_digest = false

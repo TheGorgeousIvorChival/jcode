@@ -1,6 +1,6 @@
 use anyhow::Result;
 use bytes::Bytes;
-use futures::Stream;
+use futures::{Stream, StreamExt};
 use jcode_message_types::StreamEvent;
 use serde_json::Value;
 use std::collections::VecDeque;
@@ -45,7 +45,7 @@ fn sends_cumulative_reasoning_snapshots(model: &str) -> bool {
 }
 
 pub struct OpenRouterStream {
-    inner: Pin<Box<dyn Stream<Item = Result<Bytes, reqwest::Error>> + Send>>,
+    inner: Pin<Box<dyn Stream<Item = Result<Bytes, anyhow::Error>> + Send>>,
     buffer: String,
     /// Carries incomplete multi-byte UTF-8 sequences across chunk boundaries
     /// so split CJK characters are not dropped (#609).
@@ -78,6 +78,20 @@ struct ToolCallAccumulator {
 impl OpenRouterStream {
     pub fn new(
         stream: impl Stream<Item = Result<Bytes, reqwest::Error>> + Send + 'static,
+        model: String,
+        provider_pin: Arc<Mutex<Option<ProviderPin>>>,
+    ) -> Self {
+        Self::from_anyhow_stream(
+            stream.map(|chunk| chunk.map_err(anyhow::Error::from)),
+            model,
+            provider_pin,
+        )
+    }
+
+    /// Build from a non-reqwest transport (the BoringSSL OpenCode free lane),
+    /// whose body stream reports `anyhow::Error` directly.
+    pub fn from_anyhow_stream(
+        stream: impl Stream<Item = Result<Bytes, anyhow::Error>> + Send + 'static,
         model: String,
         provider_pin: Arc<Mutex<Option<ProviderPin>>>,
     ) -> Self {
